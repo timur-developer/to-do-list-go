@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
 	"go-rest-api/internal/models"
 	"gorm.io/gorm"
@@ -30,13 +31,19 @@ func GetHandler(c echo.Context, db *gorm.DB) error {
 		return respondWithError(c, http.StatusBadRequest, "Could not find the message")
 	}
 
-	return respondWithSuccess(c, http.StatusOK, &messages)
+	return respondWithSuccess(c, http.StatusOK, messages)
 }
+
+var validate = validator.New()
 
 func PostHandler(c echo.Context, db *gorm.DB) error {
 	var message models.Message
 	if err := c.Bind(&message); err != nil {
 		return respondWithError(c, http.StatusBadRequest, "Could not add the message")
+	}
+
+	if err := validate.Struct(&message); err != nil {
+		return respondWithError(c, http.StatusBadRequest, "Validation failed")
 	}
 
 	if err := db.Create(&message).Error; err != nil {
@@ -46,18 +53,22 @@ func PostHandler(c echo.Context, db *gorm.DB) error {
 	return respondWithSuccess(c, http.StatusOK, createResponse("OK", "Message was added successfully"))
 }
 
-func PatchHandler(c echo.Context, db *gorm.DB) error {
+func PutHandler(c echo.Context, db *gorm.DB) error {
 	idParam := c.Param("id")
 	id, err := strconv.Atoi(idParam)
 	if err != nil {
 		return respondWithError(c, http.StatusBadRequest, "Incorrect ID")
+	}
+	var message models.Message
+	if err := db.First(&message, id).Error; err != nil {
+		return respondWithError(c, http.StatusNotFound, "Could not find the message")
 	}
 	var updatedMessage models.Message
 	if err := c.Bind(&updatedMessage); err != nil {
 		return respondWithError(c, http.StatusBadRequest, "Invalid input")
 	}
 
-	if err := db.Model(&models.Message{}).Where("id = ?", id).Update("text", updatedMessage.Text).Error; err != nil {
+	if err := db.Model(&message).Updates(&updatedMessage).Error; err != nil {
 		return respondWithError(c, http.StatusBadRequest, "Could not update the message")
 	}
 
@@ -71,7 +82,15 @@ func DeleteHandler(c echo.Context, db *gorm.DB) error {
 		return respondWithError(c, http.StatusBadRequest, "Incorrect ID")
 	}
 
-	if err := db.Delete(&models.Message{}, id).Error; err != nil {
+	var message models.Message
+	if err := db.First(&message, id).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return respondWithError(c, http.StatusNotFound, "Message not found")
+		}
+		return respondWithError(c, http.StatusBadRequest, "Could not retrieve the message")
+	}
+
+	if err := db.Delete(&message).Error; err != nil {
 		return respondWithError(c, http.StatusBadRequest, "Could not delete the message")
 	}
 
