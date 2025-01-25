@@ -1,4 +1,4 @@
-module go-rest-api
+module to-do-list-go
 
 go 1.23.4
 

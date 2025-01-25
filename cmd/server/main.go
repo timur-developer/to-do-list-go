@@ -2,16 +2,11 @@ package main
 
 import (
 	"github.com/labstack/echo/v4"
-	"go-rest-api/internal/database"
-	"go-rest-api/internal/models"
-	"go-rest-api/internal/router"
 	"log"
+	"to-do-list-go/internal/database"
+	"to-do-list-go/internal/models"
+	"to-do-list-go/internal/router"
 )
-
-/*type Response struct {
-	Status  string `json:"status"`
-	Message string `json:"message"`
-}*/
 
 func main() {
 	dsn := "host=localhost user=postgres password=yourpassword dbname=postgres port=5432 sslmode=disable"
