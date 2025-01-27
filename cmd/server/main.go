@@ -23,7 +23,7 @@ func main() {
 
 	db := database.InitDB(dsn)
 
-	database.MigrateDB(db, &models.Message{})
+	database.MigrateDB(db, &models.Task{})
 
 	e := echo.New()
 

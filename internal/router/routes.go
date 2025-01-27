@@ -8,13 +8,13 @@ import (
 
 func RegisterRoutes(e *echo.Echo, db *gorm.DB) {
 	e.GET("/list", func(c echo.Context) error {
-		return handlers.GetHandler(c, db)
+		return handlers.GetTasksHandler(c, db)
 	})
 	e.POST("/create", func(c echo.Context) error {
-		return handlers.PostHandler(c, db)
+		return handlers.PostTasksHandler(c, db)
 	})
-	e.PUT("/done/:id", func(c echo.Context) error { return handlers.PutHandler(c, db) })
+	e.PUT("/done/:id", func(c echo.Context) error { return handlers.PutTasksHandler(c, db) })
 	e.DELETE("/delete/:id", func(c echo.Context) error {
-		return handlers.DeleteHandler(c, db)
+		return handlers.DeleteTasksHandler(c, db)
 	})
 }

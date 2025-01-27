@@ -8,46 +8,46 @@ import (
 	"to-do-list-go/internal/models"
 )
 
-func respondWithError(c echo.Context, status int, message string) error {
-	return c.JSON(status, map[string]string{"error": message})
+func respondWithError(c echo.Context, status int, task string) error {
+	return c.JSON(status, map[string]string{"error": task})
 }
 
 func respondWithSuccess(c echo.Context, status int, data interface{}) error {
 	return c.JSON(status, data)
 }
 
-func createResponse(status string, message string) map[string]string {
+func createResponse(status string, task string) map[string]string {
 	return map[string]string{
-		"status":  status,
-		"message": message,
+		"status": status,
+		"task":   task,
 	}
 }
 
-func GetHandler(c echo.Context, db *gorm.DB) error {
-	var messages []models.Message
-	if err := db.Find(&messages).Error; err != nil {
-		return respondWithError(c, http.StatusInternalServerError, "Error retrieving messages")
+func GetTasksHandler(c echo.Context, db *gorm.DB) error {
+	var tasks []models.Task
+	if err := db.Find(&tasks).Error; err != nil {
+		return respondWithError(c, http.StatusInternalServerError, "Error retrieving task")
 	}
-	if len(messages) == 0 {
-		return respondWithSuccess(c, http.StatusOK, map[string]string{"message": "No messages found"})
+	if len(tasks) == 0 {
+		return respondWithSuccess(c, http.StatusOK, map[string]string{"task": "No task found"})
 	}
-	return respondWithSuccess(c, http.StatusOK, messages)
+	return respondWithSuccess(c, http.StatusOK, tasks)
 }
 
-func PostHandler(c echo.Context, db *gorm.DB) error {
-	var message models.Message
-	if err := c.Bind(&message); err != nil {
-		return respondWithError(c, http.StatusBadRequest, "Could not add the message")
+func PostTasksHandler(c echo.Context, db *gorm.DB) error {
+	var task models.Task
+	if err := c.Bind(&task); err != nil {
+		return respondWithError(c, http.StatusBadRequest, "Could not add the task")
 	}
 
-	if err := db.Create(&message).Error; err != nil {
-		return respondWithError(c, http.StatusBadRequest, "Could not create the message")
+	if err := db.Create(&task).Error; err != nil {
+		return respondWithError(c, http.StatusBadRequest, "Could not create the task")
 	}
 
-	return respondWithSuccess(c, http.StatusOK, createResponse("OK", "Message was added successfully"))
+	return respondWithSuccess(c, http.StatusOK, createResponse("OK", "Task was added successfully"))
 }
 
-func PutHandler(c echo.Context, db *gorm.DB) error {
+func PutTasksHandler(c echo.Context, db *gorm.DB) error {
 	// Получение ID из параметров URL
 	idParam := c.Param("id")
 	id, err := strconv.Atoi(idParam)
@@ -56,34 +56,39 @@ func PutHandler(c echo.Context, db *gorm.DB) error {
 	}
 
 	// Проверка наличия записи в базе
-	var message models.Message
-	if err := db.First(&message, id).Error; err != nil {
-		return respondWithError(c, http.StatusNotFound, "Message not found")
+	var task models.Task
+	if err := db.First(&task, id).Error; err != nil {
+		return respondWithError(c, http.StatusNotFound, "task not found")
 	}
 
 	// Получение данных для обновления
-	var updatedMessage models.Message
-	if err := c.Bind(&updatedMessage); err != nil {
+	var updatedTask models.Task
+	if err := c.Bind(&updatedTask); err != nil {
 		return respondWithError(c, http.StatusBadRequest, "Invalid input format")
 	}
 
 	// Обновление только изменённых полей
 	updates := map[string]interface{}{}
-	if updatedMessage.Text != "" {
-		updates["text"] = updatedMessage.Text
+	if updatedTask.TaskName != "" {
+		updates["task_name"] = updatedTask.TaskName
 	}
-	updates["is_done"] = updatedMessage.IsDone
+	if updatedTask.TaskDescription != "" {
+		updates["description"] = updatedTask.TaskDescription
+	}
+	updates["is_done"] = updatedTask.IsDone
+
+	updates["status_updated_at"] = gorm.Expr("CURRENT_TIMESTAMP")
 
 	// Обновление записи в базе данных
-	if err := db.Model(&message).Where("id = ?", id).Updates(updates).Error; err != nil {
-		return respondWithError(c, http.StatusInternalServerError, "Could not update the message")
+	if err := db.Model(&task).Where("id = ?", id).Updates(updates).Error; err != nil {
+		return respondWithError(c, http.StatusInternalServerError, "Could not update the task")
 	}
 
 	// Возвращение успешного ответа
-	return respondWithSuccess(c, http.StatusOK, createResponse("Success", "Message was updated"))
+	return respondWithSuccess(c, http.StatusOK, createResponse("Success", "Task was updated"))
 }
 
-func DeleteHandler(c echo.Context, db *gorm.DB) error {
+func DeleteTasksHandler(c echo.Context, db *gorm.DB) error {
 	idParam := c.Param("id")
 	id, err := strconv.Atoi(idParam)
 	if err != nil {
@@ -91,18 +96,18 @@ func DeleteHandler(c echo.Context, db *gorm.DB) error {
 	}
 
 	// Проверяем, существует ли сообщение с таким ID
-	var message models.Message
-	if err := db.First(&message, id).Error; err != nil {
+	var task models.Task
+	if err := db.First(&task, id).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
-			return respondWithError(c, http.StatusNotFound, "Message not found")
+			return respondWithError(c, http.StatusNotFound, "Task not found")
 		}
-		return respondWithError(c, http.StatusBadRequest, "Could not retrieve the message")
+		return respondWithError(c, http.StatusBadRequest, "Could not retrieve the task")
 	}
 
 	// Если сообщение найдено, удаляем его
-	if err := db.Delete(&message).Error; err != nil {
-		return respondWithError(c, http.StatusBadRequest, "Could not delete the message")
+	if err := db.Delete(&task).Error; err != nil {
+		return respondWithError(c, http.StatusBadRequest, "Could not delete the task")
 	}
 
-	return respondWithSuccess(c, http.StatusOK, createResponse("Success", "Message was deleted"))
+	return respondWithSuccess(c, http.StatusOK, createResponse("Success", "Task was deleted"))
 }
