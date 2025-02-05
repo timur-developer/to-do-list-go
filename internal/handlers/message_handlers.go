@@ -1,10 +1,13 @@
 package handlers
 
 import (
+	"fmt"
 	"github.com/labstack/echo/v4"
 	"gorm.io/gorm"
 	"net/http"
 	"strconv"
+	"time"
+	"to-do-list-go/internal/kafka"
 	"to-do-list-go/internal/models"
 )
 
@@ -23,7 +26,9 @@ func createResponse(status string, task string) map[string]string {
 	}
 }
 
-func GetTasksHandler(c echo.Context, db *gorm.DB) error {
+func GetTasksHandler(c echo.Context, db *gorm.DB, producer *kafka.Producer) error {
+	requestTime := time.Now().Format(time.RFC3339)
+
 	var tasks []models.Task
 	if err := db.Find(&tasks).Error; err != nil {
 		return respondWithError(c, http.StatusInternalServerError, "Error retrieving task")
@@ -31,10 +36,15 @@ func GetTasksHandler(c echo.Context, db *gorm.DB) error {
 	if len(tasks) == 0 {
 		return respondWithSuccess(c, http.StatusOK, map[string]string{"task": "No task found"})
 	}
+
+	producer.ProduceMessage("task_updates", requestTime, "Get tasks request recieved")
+
 	return respondWithSuccess(c, http.StatusOK, tasks)
 }
 
-func PostTasksHandler(c echo.Context, db *gorm.DB) error {
+func PostTasksHandler(c echo.Context, db *gorm.DB, producer *kafka.Producer) error {
+	requestTime := time.Now().Format(time.RFC3339)
+
 	var task models.Task
 	if err := c.Bind(&task); err != nil {
 		return respondWithError(c, http.StatusBadRequest, "Could not add the task")
@@ -44,10 +54,14 @@ func PostTasksHandler(c echo.Context, db *gorm.DB) error {
 		return respondWithError(c, http.StatusBadRequest, "Could not create the task")
 	}
 
+	producer.ProduceMessage("task_updates", requestTime, fmt.Sprintf("Task created with ID: %d", task.ID))
+
 	return respondWithSuccess(c, http.StatusOK, createResponse("OK", "Task was added successfully"))
 }
 
-func PutTasksHandler(c echo.Context, db *gorm.DB) error {
+func PutTasksHandler(c echo.Context, db *gorm.DB, producer *kafka.Producer) error {
+	requestTime := time.Now().Format(time.RFC3339)
+
 	// Получение ID из параметров URL
 	idParam := c.Param("id")
 	id, err := strconv.Atoi(idParam)
@@ -73,7 +87,7 @@ func PutTasksHandler(c echo.Context, db *gorm.DB) error {
 		updates["task_name"] = updatedTask.TaskName
 	}
 	if updatedTask.TaskDescription != "" {
-		updates["description"] = updatedTask.TaskDescription
+		updates["task_description"] = updatedTask.TaskDescription
 	}
 	updates["is_done"] = updatedTask.IsDone
 
@@ -84,11 +98,15 @@ func PutTasksHandler(c echo.Context, db *gorm.DB) error {
 		return respondWithError(c, http.StatusInternalServerError, "Could not update the task")
 	}
 
+	producer.ProduceMessage("task_updates", requestTime, fmt.Sprintf("Task updated with ID: %d", task.ID))
+
 	// Возвращение успешного ответа
 	return respondWithSuccess(c, http.StatusOK, createResponse("Success", "Task was updated"))
 }
 
-func DeleteTasksHandler(c echo.Context, db *gorm.DB) error {
+func DeleteTasksHandler(c echo.Context, db *gorm.DB, producer *kafka.Producer) error {
+	requestTime := time.Now().Format(time.RFC3339)
+
 	idParam := c.Param("id")
 	id, err := strconv.Atoi(idParam)
 	if err != nil {
@@ -108,6 +126,8 @@ func DeleteTasksHandler(c echo.Context, db *gorm.DB) error {
 	if err := db.Delete(&task).Error; err != nil {
 		return respondWithError(c, http.StatusBadRequest, "Could not delete the task")
 	}
+
+	producer.ProduceMessage("task_updates", requestTime, fmt.Sprintf("Task deleted with ID: %d", task.ID))
 
 	return respondWithSuccess(c, http.StatusOK, createResponse("Success", "Task was deleted"))
 }
