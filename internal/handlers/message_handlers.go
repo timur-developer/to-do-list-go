@@ -59,7 +59,7 @@ func PostTasksHandler(c echo.Context, db *gorm.DB, producer *kafka.Producer) err
 	return respondWithSuccess(c, http.StatusOK, createResponse("OK", "Task was added successfully"))
 }
 
-func PutTasksHandler(c echo.Context, db *gorm.DB, producer *kafka.Producer) error {
+func PatchTasksHandler(c echo.Context, db *gorm.DB, producer *kafka.Producer) error {
 	requestTime := time.Now().Format(time.RFC3339)
 
 	// Получение ID из параметров URL
